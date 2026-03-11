@@ -378,7 +378,15 @@ const App=()=>{
         .bar{height:24px;border-radius:4px;transition:width 1s ease}
         .hlift{transition:all .3s}.hlift:hover{transform:translateY(-5px);box-shadow:0 12px 40px rgba(0,0,0,.1)}
         .srch{width:100%;padding:10px 14px;border-radius:10px;border:1px solid #e0e0e0;font-size:13px;font-family:'Outfit';outline:none}.srch:focus{border-color:${R}}
-        @media(max-width:900px){.sb{display:none!important}.ma{margin-left:0!important}}
+        @media(max-width:768px){
+          .sb{display:none!important}
+          .ma{margin-left:0!important;padding:16px 14px 80px!important}
+          .mob-nav{display:flex!important}
+          .hdr-filters{overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap!important;padding-bottom:2px}
+          .hdr-filters select,.hdr-filters a{flex-shrink:0}
+          .hide-mob{display:none!important}
+        }
+        @media(min-width:769px){.mob-nav{display:none!important}}
       `}</style>
 
       {pg!=="home"&&(<header style={{position:"fixed",top:0,left:0,right:0,zIndex:100,background:"white",borderBottom:"1px solid #eee",padding:"0 20px",height:56,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
@@ -386,7 +394,7 @@ const App=()=>{
           <div style={{width:32,height:32,background:R,borderRadius:7,display:"flex",alignItems:"center",justifyContent:"center",color:"white",fontWeight:800,fontSize:11,fontFamily:"'Space Mono',monospace",cursor:"pointer"}} onClick={()=>setPg("home")}>SNS</div>
           <div style={{cursor:"pointer"}} onClick={()=>setPg("home")}><div style={{fontWeight:700,fontSize:14,letterSpacing:"-.3px"}}>IIPC Placement Portal</div><div style={{fontSize:9,color:"#999",letterSpacing:".5px"}}>iipc.snsgroups.com</div></div>
         </div>
-        <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
+        <div className="hdr-filters" style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
           <select value={col} onChange={e=>{setCol(e.target.value);setDept("All")}} style={{padding:"6px 10px",borderRadius:8,border:"1px solid #ddd",fontSize:12,fontFamily:"'Outfit'",cursor:"pointer"}}><option value="all">All Institutions</option>{COLLEGES.map(c=><option key={c.id} value={c.id}>{c.short}</option>)}</select>
           {col!=="all"&&<select value={dept} onChange={e=>setDept(e.target.value)} style={{padding:"6px 10px",borderRadius:8,border:"1px solid #ddd",fontSize:12,fontFamily:"'Outfit'",cursor:"pointer"}}>{depts.map(d=><option key={d} value={d}>{d}</option>)}</select>}
           <select value={yr} onChange={e=>setYr(e.target.value)} style={{padding:"6px 10px",borderRadius:8,border:"1px solid #ddd",fontSize:12,fontFamily:"'Outfit'",cursor:"pointer"}}>{YEARS.map(y=><option key={y} value={y}>{y}</option>)}</select>
@@ -427,7 +435,12 @@ const App=()=>{
           {navItems.map(n=>(<button key={n.id} className={`nav-i ${pg===n.id?"on":""}`} onClick={()=>setPg(n.id)}><span>{n.icon}</span>{n.l}</button>))}
           <div style={{borderTop:"1px solid #eee",marginTop:14,paddingTop:14,paddingLeft:14}}><div style={{fontSize:10,color:"#bbb",textTransform:"uppercase",letterSpacing:"1px",marginBottom:6}}>Filters Active</div><div style={{fontSize:11,color:"#888",lineHeight:1.5}}><div>College: <strong>{col==="all"?"All":COLLEGES.find(c=>c.id===col)?.short}</strong></div><div>Dept: <strong>{dept}</strong></div><div>Year: <strong>{yr}</strong></div></div></div>
         </aside>
-        <main className="ma" style={{marginLeft:210,flex:1,padding:"24px 28px",minHeight:"calc(100vh - 56px)"}}>
+        <nav className="mob-nav" style={{display:"none",position:"fixed",bottom:0,left:0,right:0,zIndex:200,background:"white",borderTop:"1px solid #eee",overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
+          <div style={{display:"flex",minWidth:"max-content",padding:"4px 8px"}}>
+            {navItems.map(n=>(<button key={n.id} onClick={()=>setPg(n.id)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2,padding:"6px 14px",border:"none",background:"none",cursor:"pointer",fontFamily:"'Outfit'",color:pg===n.id?R:"#999",borderBottom:pg===n.id?`2px solid ${R}`:"2px solid transparent",transition:"all .2s"}}><span style={{fontSize:18}}>{n.icon}</span><span style={{fontSize:9,fontWeight:600,whiteSpace:"nowrap"}}>{n.l}</span></button>))}
+          </div>
+        </nav>
+        <main className="ma" style={{marginLeft:210,flex:1,padding:"24px 28px",minHeight:"calc(100vh - 56px)"}}>  
 
           {pg==="dashboard"&&(<div>
             <h2 style={{fontSize:22,fontWeight:800,letterSpacing:"-.5px",marginBottom:4}}>Placement Dashboard</h2>
