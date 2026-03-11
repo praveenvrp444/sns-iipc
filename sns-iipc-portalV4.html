@@ -55,56 +55,7 @@ let FAC = [];
 let PLACED = [];
 let SB = [];
 
-// ─── Generic fetchDataFromSheet Function ────────────────────────────────────
-// Fetches data from any Google Sheet tab, with localStorage caching.
-// @param {string} sheetName      - The sheet/tab name to fetch
-// @param {string} cacheKey       - localStorage key for cached data
-// @param {string} cacheTimeKey   - localStorage key for cache timestamp
-// @param {function} mapFn        - Function to transform raw rows into desired structure
-// @param {function} assignFn     - Function to assign parsed data to the target variable
-// @param {boolean} force         - If true, skip cache and fetch from API
-async function fetchDataFromSheet(sheetName, cacheKey, cacheTimeKey, mapFn, assignFn, force = false) {
-  const now = Date.now();
-  // Check cache first
-  const cached = localStorage.getItem(cacheKey);
-  const cachedTime = localStorage.getItem(cacheTimeKey);
-  if (!force && cached && cachedTime && (now - parseInt(cachedTime, 10) < CACHE_DURATION_MS)) {
-    try {
-      assignFn(JSON.parse(cached));
-      return;
-    } catch (e) {
-      // If cache is corrupted, ignore and fetch from API
-    }
-  }
-  // Build the API URL from config variables
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${sheetName}?key=${SHEET_API_KEY}`;
-  try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      console.error(`HTTP ${response.status} fetching sheet "${sheetName}"`);
-      return;
-    }
-    const data = await response.json();
-    if (!data || !Array.isArray(data.values) || data.values.length < 2) {
-      console.error(`No data found in sheet "${sheetName}":`, data);
-      return;
-    }
-    const parsed = mapFn(data.values);
-    if (parsed == null) {
-      console.error(`mapFn returned null/undefined for sheet "${sheetName}"`);
-      return;
-    }
-    assignFn(parsed);
-    localStorage.setItem(cacheKey, JSON.stringify(parsed));
-    localStorage.setItem(cacheTimeKey, now.toString());
-  } catch (error) {
-    console.error(`Failed to fetch from sheet "${sheetName}":`, error);
-  }
-}
-
-// ─── College_Master: map & assign ───────────────────────────────────────────
-const CACHE_KEY_COLLEGES = 'sns_colleges_cache';
-const CACHE_KEY_COLLEGES_TIME = 'sns_colleges_cache_time';
+// ─── Map Functions ──────────────────────────────────────────────────────────
 
 function mapCollegesData(rows) {
   return rows.slice(1)
@@ -122,14 +73,6 @@ function mapCollegesData(rows) {
     }))
     .filter(c => c.id !== '');
 }
-
-function assignCollegesData(data) {
-  COLLEGES = data;
-}
-
-// ─── Training_Modules: map & assign ─────────────────────────────────────────
-const CACHE_KEY_TR = 'sns_training_cache';
-const CACHE_KEY_TR_TIME = 'sns_training_cache_time';
 
 function mapTrainingData(rows) {
   // Expects columns: key, title, partner, description, modules (comma-separated)
@@ -150,14 +93,6 @@ function mapTrainingData(rows) {
   return result;
 }
 
-function assignTrainingData(data) {
-  TR = data;
-}
-
-// ─── Department_Mapping: map & assign ────────────────────────────────────────
-const CACHE_KEY_DEPTS = 'sns_depts_cache';
-const CACHE_KEY_DEPTS_TIME = 'sns_depts_cache_time';
-
 function mapDeptsData(rows) {
   // Expects columns: college_id, department_name (one row per department)
   // Groups by college_id into arrays, e.g. { snsct: ["All","CSE","IT",...], snsce: [...] }
@@ -177,28 +112,12 @@ function mapDeptsData(rows) {
   return result;
 }
 
-function assignDeptsData(data) {
-  DEPTS = data;
-}
-
-// ─── Academic_Years: map & assign ────────────────────────────────────────────
-const CACHE_KEY_YEARS = 'sns_years_cache';
-const CACHE_KEY_YEARS_TIME = 'sns_years_cache_time';
-
 function mapYearsData(rows) {
   // Expects column: academic_year (one row per year, e.g. "2024-25")
   return rows.slice(1)
     .map(row => (row && row[0] ? (row[0] || '').trim() : ''))
     .filter(y => y !== '');
 }
-
-function assignYearsData(data) {
-  YEARS = data;
-}
-
-// ─── Placement_Stats: map & assign ──────────────────────────────────────────
-const CACHE_KEY_YS = 'sns_ys_cache';
-const CACHE_KEY_YS_TIME = 'sns_ys_cache_time';
 
 function mapYSData(rows) {
   // Expects columns: college_id, year, highest, avg, median, placed, eligible, recruiters, offers
@@ -226,28 +145,12 @@ function mapYSData(rows) {
   return result;
 }
 
-function assignYSData(data) {
-  YS = data;
-}
-
-// ─── Categories: map & assign ────────────────────────────────────────────────
-const CACHE_KEY_CATS = 'sns_cats_cache';
-const CACHE_KEY_CATS_TIME = 'sns_cats_cache_time';
-
 function mapCatsData(rows) {
   // Expects column: category_name (one row per category)
   return rows.slice(1)
     .map(row => (row && row[0] ? (row[0] || '').trim() : ''))
     .filter(c => c !== '');
 }
-
-function assignCatsData(data) {
-  CATS = data;
-}
-
-// ─── Company_Visits: map & assign ─────────────────────────────────────────────
-const CACHE_KEY_CV = 'sns_cv_cache';
-const CACHE_KEY_CV_TIME = 'sns_cv_cache_time';
 
 function mapCVData(rows) {
   // Expects columns: company, academic_year, date, package, roles, category, college, status, placed, dept
@@ -267,14 +170,6 @@ function mapCVData(rows) {
     }));
 }
 
-function assignCVData(data) {
-  CV = data;
-}
-
-// ─── Upcoming_Drives: map & assign ─────────────────────────────────────────────
-const CACHE_KEY_UPCOMING = 'sns_upcoming_cache';
-const CACHE_KEY_UPCOMING_TIME = 'sns_upcoming_cache_time';
-
 function mapUpcomingData(rows) {
   // Expects columns: company, date, package, roles, eligibility, college
   return rows.slice(1)
@@ -288,14 +183,6 @@ function mapUpcomingData(rows) {
       cl: (row[5] || '').trim()
     }));
 }
-
-function assignUpcomingData(data) {
-  UPCOMING = data;
-}
-
-// ─── Certifications: map & assign ─────────────────────────────────────────────
-const CACHE_KEY_CERTS = 'sns_certs_cache';
-const CACHE_KEY_CERTS_TIME = 'sns_certs_cache_time';
 
 function mapCertsData(rows) {
   // Expects columns: type (it/core), name, count, color
@@ -316,14 +203,6 @@ function mapCertsData(rows) {
   return result;
 }
 
-function assignCertsData(data) {
-  CERTS = data;
-}
-
-// ─── Training_Platforms: map & assign ─────────────────────────────────────────
-const CACHE_KEY_PL = 'sns_pl_cache';
-const CACHE_KEY_PL_TIME = 'sns_pl_cache_time';
-
 function mapPLData(rows) {
   // Expects columns: name, usage/description
   return rows.slice(1)
@@ -333,14 +212,6 @@ function mapPLData(rows) {
       u: (row[1] || '').trim()
     }));
 }
-
-function assignPLData(data) {
-  PL = data;
-}
-
-// ─── Facilities: map & assign ─────────────────────────────────────────────────
-const CACHE_KEY_FAC = 'sns_fac_cache';
-const CACHE_KEY_FAC_TIME = 'sns_fac_cache_time';
 
 function mapFACData(rows) {
   // Expects columns: icon, title, description
@@ -352,14 +223,6 @@ function mapFACData(rows) {
       d: (row[2] || '').trim()
     }));
 }
-
-function assignFACData(data) {
-  FAC = data;
-}
-
-// ─── Placed_Students: map & assign ────────────────────────────────────────────
-const CACHE_KEY_PLACED = 'sns_placed_cache';
-const CACHE_KEY_PLACED_TIME = 'sns_placed_cache_time';
 
 function mapPlacedData(rows) {
   // Expects columns: student_id, name, photo_url, dept, college, company, ctc, role
@@ -376,14 +239,6 @@ function mapPlacedData(rows) {
       role: (row[7] || '').trim()
     }));
 }
-
-function assignPlacedData(data) {
-  PLACED = data;
-}
-
-// ─── Salary_Distribution: map & assign ────────────────────────────────────────
-const CACHE_KEY_SB = 'sns_sb_cache';
-const CACHE_KEY_SB_TIME = 'sns_sb_cache_time';
 
 // Color mapping based on range (from original hardcoded values)
 const SB_RANGE_COLORS = {
@@ -421,41 +276,62 @@ function mapSBData(rows) {
     });
 }
 
-function assignSBData(data) {
-  SB = data;
+// ─── Sheet Config & Batch Fetch (single API call for all 13 sheets) ─────────
+const SHEETS = [
+  { sheet: colleges_sheet,          key: 'colleges', mapFn: mapCollegesData, assign: d => COLLEGES = d },
+  { sheet: trainingModules_sheet,   key: 'training', mapFn: mapTrainingData, assign: d => TR = d },
+  { sheet: departmentMapping_sheet, key: 'depts',    mapFn: mapDeptsData,    assign: d => DEPTS = d },
+  { sheet: academicYears_sheet,     key: 'years',    mapFn: mapYearsData,    assign: d => YEARS = d },
+  { sheet: placementstats_sheet,    key: 'ys',       mapFn: mapYSData,       assign: d => YS = d },
+  { sheet: categories_sheet,        key: 'cats',     mapFn: mapCatsData,     assign: d => CATS = d },
+  { sheet: companyVisits_sheet,     key: 'cv',       mapFn: mapCVData,       assign: d => CV = d },
+  { sheet: upcomingDrives_sheet,    key: 'upcoming', mapFn: mapUpcomingData, assign: d => UPCOMING = d },
+  { sheet: certifications_sheet,    key: 'certs',    mapFn: mapCertsData,    assign: d => CERTS = d },
+  { sheet: trainingPlatforms_sheet, key: 'pl',       mapFn: mapPLData,       assign: d => PL = d },
+  { sheet: facilities_sheet,        key: 'fac',      mapFn: mapFACData,      assign: d => FAC = d },
+  { sheet: placedStudents_sheet,    key: 'placed',   mapFn: mapPlacedData,   assign: d => PLACED = d },
+  { sheet: salaryDistribution_sheet,key: 'sb',       mapFn: mapSBData,       assign: d => SB = d },
+];
+
+const CACHE_KEY_ALL = 'sns_portal_data';
+const CACHE_KEY_ALL_TIME = 'sns_portal_data_time';
+
+async function fetchAllSheets(force = false) {
+  const now = Date.now();
+  if (!force) {
+    const cached = localStorage.getItem(CACHE_KEY_ALL);
+    const cachedTime = localStorage.getItem(CACHE_KEY_ALL_TIME);
+    if (cached && cachedTime && (now - parseInt(cachedTime, 10) < CACHE_DURATION_MS)) {
+      try {
+        const allData = JSON.parse(cached);
+        SHEETS.forEach(s => { if (allData[s.key]) s.assign(allData[s.key]); });
+        return;
+      } catch (e) { /* corrupted cache, re-fetch */ }
+    }
+  }
+  const ranges = SHEETS.map(s => encodeURIComponent(s.sheet)).join('&ranges=');
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values:batchGet?ranges=${ranges}&key=${SHEET_API_KEY}`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) { console.error(`batchGet failed: HTTP ${res.status}`); return; }
+    const data = await res.json();
+    if (!data.valueRanges) { console.error('batchGet: no valueRanges', data); return; }
+    const allData = {};
+    data.valueRanges.forEach((vr, i) => {
+      const cfg = SHEETS[i];
+      if (!vr.values || vr.values.length < 2) return;
+      const parsed = cfg.mapFn(vr.values);
+      if (parsed != null) { cfg.assign(parsed); allData[cfg.key] = parsed; }
+    });
+    localStorage.setItem(CACHE_KEY_ALL, JSON.stringify(allData));
+    localStorage.setItem(CACHE_KEY_ALL_TIME, now.toString());
+  } catch (err) {
+    console.error('Failed to fetch sheets:', err);
+  }
 }
 
-// ─── Initial fetch on page load (uses cache if available) ───────────────────
-fetchDataFromSheet(colleges_sheet, CACHE_KEY_COLLEGES, CACHE_KEY_COLLEGES_TIME, mapCollegesData, assignCollegesData);
-fetchDataFromSheet(trainingModules_sheet, CACHE_KEY_TR, CACHE_KEY_TR_TIME, mapTrainingData, assignTrainingData);
-fetchDataFromSheet(departmentMapping_sheet, CACHE_KEY_DEPTS, CACHE_KEY_DEPTS_TIME, mapDeptsData, assignDeptsData);
-fetchDataFromSheet(academicYears_sheet, CACHE_KEY_YEARS, CACHE_KEY_YEARS_TIME, mapYearsData, assignYearsData);
-fetchDataFromSheet(placementstats_sheet, CACHE_KEY_YS, CACHE_KEY_YS_TIME, mapYSData, assignYSData);
-fetchDataFromSheet(categories_sheet, CACHE_KEY_CATS, CACHE_KEY_CATS_TIME, mapCatsData, assignCatsData);
-fetchDataFromSheet(companyVisits_sheet, CACHE_KEY_CV, CACHE_KEY_CV_TIME, mapCVData, assignCVData);
-fetchDataFromSheet(upcomingDrives_sheet, CACHE_KEY_UPCOMING, CACHE_KEY_UPCOMING_TIME, mapUpcomingData, assignUpcomingData);
-fetchDataFromSheet(certifications_sheet, CACHE_KEY_CERTS, CACHE_KEY_CERTS_TIME, mapCertsData, assignCertsData);
-fetchDataFromSheet(trainingPlatforms_sheet, CACHE_KEY_PL, CACHE_KEY_PL_TIME, mapPLData, assignPLData);
-fetchDataFromSheet(facilities_sheet, CACHE_KEY_FAC, CACHE_KEY_FAC_TIME, mapFACData, assignFACData);
-fetchDataFromSheet(placedStudents_sheet, CACHE_KEY_PLACED, CACHE_KEY_PLACED_TIME, mapPlacedData, assignPlacedData);
-fetchDataFromSheet(salaryDistribution_sheet, CACHE_KEY_SB, CACHE_KEY_SB_TIME, mapSBData, assignSBData);
-
-// ─── Refetch every 5 minutes (CACHE_DURATION_MS) ───────────────────────────
-setInterval(() => {
-  fetchDataFromSheet(colleges_sheet, CACHE_KEY_COLLEGES, CACHE_KEY_COLLEGES_TIME, mapCollegesData, assignCollegesData, true);
-  fetchDataFromSheet(trainingModules_sheet, CACHE_KEY_TR, CACHE_KEY_TR_TIME, mapTrainingData, assignTrainingData, true);
-  fetchDataFromSheet(departmentMapping_sheet, CACHE_KEY_DEPTS, CACHE_KEY_DEPTS_TIME, mapDeptsData, assignDeptsData, true);
-  fetchDataFromSheet(academicYears_sheet, CACHE_KEY_YEARS, CACHE_KEY_YEARS_TIME, mapYearsData, assignYearsData, true);
-  fetchDataFromSheet(placementstats_sheet, CACHE_KEY_YS, CACHE_KEY_YS_TIME, mapYSData, assignYSData, true);
-  fetchDataFromSheet(categories_sheet, CACHE_KEY_CATS, CACHE_KEY_CATS_TIME, mapCatsData, assignCatsData, true);
-  fetchDataFromSheet(companyVisits_sheet, CACHE_KEY_CV, CACHE_KEY_CV_TIME, mapCVData, assignCVData, true);
-  fetchDataFromSheet(upcomingDrives_sheet, CACHE_KEY_UPCOMING, CACHE_KEY_UPCOMING_TIME, mapUpcomingData, assignUpcomingData, true);
-  fetchDataFromSheet(certifications_sheet, CACHE_KEY_CERTS, CACHE_KEY_CERTS_TIME, mapCertsData, assignCertsData, true);
-  fetchDataFromSheet(trainingPlatforms_sheet, CACHE_KEY_PL, CACHE_KEY_PL_TIME, mapPLData, assignPLData, true);
-  fetchDataFromSheet(facilities_sheet, CACHE_KEY_FAC, CACHE_KEY_FAC_TIME, mapFACData, assignFACData, true);
-  fetchDataFromSheet(placedStudents_sheet, CACHE_KEY_PLACED, CACHE_KEY_PLACED_TIME, mapPlacedData, assignPlacedData, true);
-  fetchDataFromSheet(salaryDistribution_sheet, CACHE_KEY_SB, CACHE_KEY_SB_TIME, mapSBData, assignSBData, true);
-}, CACHE_DURATION_MS);
+fetchAllSheets();
+setInterval(() => fetchAllSheets(true), CACHE_DURATION_MS);
 
 const App=()=>{
   const [pg,setPg]=useState("home");
@@ -563,7 +439,7 @@ const App=()=>{
             <div className="card" style={{padding:24}}><h3 style={{fontSize:15,fontWeight:700,marginBottom:16}}>Salary Distribution</h3>{SB.filter(b=>b.ay===yr).map((b,i)=>{const val=col==="all"?(b.snsct+b.snsce+b.drsnsrcas):(b[col]||0);const mx=col==="all"?1500:800;return(<div key={i} style={{display:"flex",alignItems:"center",gap:12,marginBottom:8}}><div style={{width:70,fontSize:12,fontWeight:700,fontFamily:"'Space Mono',monospace",color:"#555",flexShrink:0}}>{b.range}</div><div style={{flex:1,height:24,background:"#f0f0f0",borderRadius:4,overflow:"hidden"}}><div className="bar" style={{width:`${Math.max((val/mx)*100,2)}%`,background:b.c,display:"flex",alignItems:"center",justifyContent:"flex-end",paddingRight:8}}><span style={{fontSize:10,fontWeight:700,color:"white"}}>{val}</span></div></div></div>)})}</div>
           </div>)}
 
-          {pg==="colleges"&&(<div><h2 style={{fontSize:22,fontWeight:800,marginBottom:24}}>Colleges & Departments</h2>{COLLEGES.map(c=>{const s=YS[c.id]?.[yr];if(!s)return null;return(<div key={c.id} className="card" style={{padding:24,marginBottom:16,borderLeft:`4px solid ${c.color}`,cursor:"pointer"}} onClick={()=>{setCol(c.id);setPg("dashboard")}}><div style={{display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:12,marginBottom:14}}><div><h3 style={{fontSize:17,fontWeight:700}}>{c.name}</h3><div style={{fontSize:12,color:"#999"}}>{c.accr} · Code: {c.code} · {c.poc}</div><div style={{fontSize:12,color:"#999"}}>📧 {c.email}{c.phone&&` · 📞 ${c.phone}`}</div></div><div style={{display:"flex",gap:10}}><StatBox v={s.h} l="Highest" /><StatBox v={s.p.toLocaleString()} l="Placed" /><StatBox v={Math.round(s.p/s.e*100)+"%"} l="Rate" c="#4ECDC4" /></div></div><div style={{display:"flex",flexWrap:"wrap",gap:6}}>{(DEPTS[c.id]||[]).filter(d=>d!=="All").map(d=>(<span key={d} onClick={e=>{e.stopPropagation();setCol(c.id);setDept(d);setPg("dashboard")}} style={{padding:"4px 12px",borderRadius:100,background:"#f0f0f0",fontSize:11,fontWeight:500,color:"#555",cursor:"pointer",transition:"all .2s"}}>{d}</span>))}</div></div>)})}</div>)}
+          {pg==="colleges"&&(<div><h2 style={{fontSize:22,fontWeight:800,marginBottom:24}}>Colleges & Departments</h2>{COLLEGES.map(c=>{const s=YS[c.id]?.[yr]||{h:'-',a:'-',m:'-',p:0,e:1,r:0,o:0};return(<div key={c.id} className="card" style={{padding:24,marginBottom:16,borderLeft:`4px solid ${c.color}`,cursor:"pointer"}} onClick={()=>{setCol(c.id);setPg("dashboard")}}><div style={{display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:12,marginBottom:14}}><div><h3 style={{fontSize:17,fontWeight:700}}>{c.name}</h3><div style={{fontSize:12,color:"#999"}}>{c.accr} · Code: {c.code} · {c.poc}</div><div style={{fontSize:12,color:"#999"}}>📧 {c.email}{c.phone&&` · 📞 ${c.phone}`}</div></div><div style={{display:"flex",gap:10}}><StatBox v={s.h} l="Highest" /><StatBox v={s.p.toLocaleString()} l="Placed" /><StatBox v={s.e>0?Math.round(s.p/s.e*100)+"%":"—"} l="Rate" c="#4ECDC4" /></div></div><div style={{display:"flex",flexWrap:"wrap",gap:6}}>{(DEPTS[c.id]||[]).filter(d=>d!=="All").map(d=>(<span key={d} onClick={e=>{e.stopPropagation();setCol(c.id);setDept(d);setPg("dashboard")}} style={{padding:"4px 12px",borderRadius:100,background:"#f0f0f0",fontSize:11,fontWeight:500,color:"#555",cursor:"pointer",transition:"all .2s"}}>{d}</span>))}</div></div>)})}</div>)}
 
           {pg==="drives"&&(<div><div style={{display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:12,marginBottom:20}}><h2 style={{fontSize:22,fontWeight:800}}>Company Visit History</h2><input className="srch" placeholder="Search company..." value={search} onChange={e=>setSearch(e.target.value)} style={{maxWidth:250}} /></div><div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:16}}>{["all",...CATS].map(c=><button key={c} className={`pill ${catF===c?"on":""}`} onClick={()=>setCatF(c)}>{c==="all"?"All":c}</button>)}</div><div className="card" style={{overflow:"auto",maxHeight:600}}><table className="tbl"><thead><tr><th>Company</th><th>Date</th><th>Package</th><th>Roles</th><th>Category</th><th>College</th><th>Dept</th><th>Status</th><th>Placed</th></tr></thead><tbody>{fv.map((v,i)=>(<tr key={i}><td style={{fontWeight:600}}>{v.co}</td><td style={{fontSize:12,color:"#888"}}>{v.dt}</td><td style={{fontWeight:600,color:R,fontFamily:"'Space Mono',monospace",fontSize:12}}>{v.pk}</td><td style={{fontSize:12,color:"#666"}}>{v.ro}</td><td><Badge bg={v.cat.includes("IT Prod")?"#E3F2FD":v.cat.includes("Core")?"#FFF3E0":v.cat.includes("Sales")?"#F3E5F5":"#E8F5E9"} fg={v.cat.includes("IT Prod")?"#1565C0":v.cat.includes("Core")?"#E65100":v.cat.includes("Sales")?"#7B1FA2":"#2E7D32"}>{v.cat}</Badge></td><td style={{fontSize:12}}>{v.cl==="all"?"All":v.cl.toUpperCase()}</td><td style={{fontSize:12,color:"#888"}}>{v.dept}</td><td><Badge bg={v.st==="Completed"?"#E8F5E9":v.st.includes("Progress")?"#FFF3E0":"#E3F2FD"} fg={v.st==="Completed"?"#2E7D32":v.st.includes("Progress")?"#E65100":"#1565C0"}>{v.st}</Badge></td><td style={{fontWeight:600,fontFamily:"'Space Mono',monospace",fontSize:12}}>{v.sp||"—"}</td></tr>))}</tbody></table></div><div style={{marginTop:10,fontSize:11,color:"#bbb"}}>{fv.length} drives shown</div></div>)}
 
